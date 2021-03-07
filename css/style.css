@@ -1,0 +1,46 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.landing-text {
+  position: absolute;
+  font-size: xx-large;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  text-align: center;
+  z-index: 0;
+ 
+}
+
+#container {
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  z-index: -1;
+  top: 0;
+  left: 0;
+}
+
+
+
+body {
+  width: 100%;
+  height: 100%;
+  /* background: url('https://image.freepik.com/free-vector/abstract-green-light-arrow-dark-grey-blank-space-design-modern-futuristic-background_104237-163.jpg')
+    no-repeat center fixed; */
+  background-size: cover;
+}
+
+
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-gap: 2em 0;
+}
+
+

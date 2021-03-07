@@ -86,7 +86,7 @@ void main(){
     // float dist=distance(position,vec2(.5));
     
     // newposition.z+=.05*sin(dist*40.);
-    newposition+=.1*normal*noise;
+    // newposition+=.1*normal*noise;
     
     vNoise=noise;
     vUv=uv;

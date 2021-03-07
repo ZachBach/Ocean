@@ -14,22 +14,52 @@ export default class Sketch {
         this.width = this.container.offsetWidth;
         this.height = this.container.offsetHeight;
 
-        this.camera = new THREE.PerspectiveCamera( 70, this.width / this.height, 0.01, 10 );
-        this.camera.position.z = 1;
+        this.camera = new THREE.PerspectiveCamera( 70, this.width / this.height, 100, 2000 );
+        this.camera.position.z = 600;
 
-        this.renderer = new THREE.WebGLRenderer( { antialias: true } );
+
+        this.camera.fov = 2*Math.atan( (this.height/2)/600 )* (180/Math.PI);
+
+        this.renderer = new THREE.WebGLRenderer( { 
+            antialias: true,
+            alpha: true
+         } );
         // this.renderer.setSize( this.width, this.height );
         // this.renderer.setAnimationLoop( animation );
         this.container.appendChild( this.renderer.domElement );
 
 
-        this.controls = new OrbitControls( this.camera, this.renderer.domElement)
+        this.controls = new OrbitControls( this.camera, this.renderer.domElement);
 
 
-        this.resize();
-        this.setupResize();
-        this.addObjects();
-        this.render();
+        this.images = [...document.querySelectorAll('img')];
+
+        const fontOpen = new Promise(resolve => {
+            new FontFaceObserver("Open Sans").load().then(()=> {
+                resolve();
+            })
+        })
+
+        const fontPlayfair = new Promise(resolve => {
+            new FontFaceObserver("PLayfair Display").load().then(()=> {
+                resolve();
+            })
+        })
+        
+        const preloadImages = new Promise(resolve => {
+            new imagesLoaded(document.querySelectorAll("img"), {Background: true} ,resolve());
+        })
+
+        let allDone = [fontOpen, fontPlayfair, preloadImages];
+
+        Promise.all(allDone).then(() => {
+            this.addImages();
+            this.setPosition();
+            this.resize();
+            this.setupResize();
+            this.addObjects();
+            this.render();
+        }) 
     }
 
     setupResize() {
@@ -45,10 +75,43 @@ export default class Sketch {
     }
 
 
+    addImages() {
+        this.imageStore = this.images.map(img => {
+            let bounds = img.getBoundingClientRect()
+
+            let geometry = new THREE.PlaneBufferGeometry(bounds.width,bounds.height, 1,1)
+
+            let material = new THREE.MeshBasicMaterial({color: 0xff0000})
+
+            let mesh = new THREE.Mesh(geometry, material)
+
+            this.scene.add(mesh)
+
+            return {
+                img: img,
+                mesh: mesh,
+                top: bounds.top,
+                left: bounds.left,
+                width: bounds.width,
+                height: bounds.height
+            }
+        })
+
+        console.log(this.imageStore);
+    }
+
+
+    setPosition() {
+        this.imageStore.forEach(o => {
+            o.mesh.position.y = -o.top + this.height/2 - o.height/2;
+            o.mesh.position.x = o.left - this.width/2 + o.width/2;
+        })
+    }
+
     addObjects() {
         
-    this.geometry = new THREE.PlaneBufferGeometry( 1, 1,40,40);
-    this.geometry = new THREE.SphereBufferGeometry( 0.5,40,40);
+    this.geometry = new THREE.PlaneBufferGeometry( 200, 400,10,10);
+    // this.geometry = new THREE.SphereBufferGeometry( 0.5,40,40);
 	this.material = new THREE.MeshNormalMaterial();
 
     this.material = new THREE.ShaderMaterial({
