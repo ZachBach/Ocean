@@ -1,12 +1,18 @@
 import * as THREE from 'three';
+import imagesLoaded from 'imagesloaded';
+import gsap from 'gsap';
+import FontFaceObserver from 'fontfaceobserver';
+import Scroll from './scroll';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import fragment from './shaders/fragment.glsl';
-import vertex from './shaders/vertex.glsl';
+import fragment from './shaders/fragment.glsl'
+import vertex from './shaders/vertex.glsl'
 
 import ocean from '../img/ocean.jpg';
 
-export default class Sketch {
-    constructor(options) {
+
+
+export default class Sketch{
+    constructor(options){
         this.time = 0;
         this.container = options.dom;
         this.scene = new THREE.Scene();
@@ -14,78 +20,150 @@ export default class Sketch {
         this.width = this.container.offsetWidth;
         this.height = this.container.offsetHeight;
 
-        this.camera = new THREE.PerspectiveCamera( 70, this.width / this.height, 100, 2000 );
+        this.camera = new THREE.PerspectiveCamera( 70, this.width/this.height, 100, 2000 );
         this.camera.position.z = 600;
-
 
         this.camera.fov = 2*Math.atan( (this.height/2)/600 )* (180/Math.PI);
 
         this.renderer = new THREE.WebGLRenderer( { 
             antialias: true,
             alpha: true
-         } );
-        // this.renderer.setSize( this.width, this.height );
-        // this.renderer.setAnimationLoop( animation );
+        } );
+        
         this.container.appendChild( this.renderer.domElement );
 
-
-        this.controls = new OrbitControls( this.camera, this.renderer.domElement);
-
+        this.controls = new OrbitControls( this.camera, this.renderer.domElement );
 
         this.images = [...document.querySelectorAll('img')];
 
         const fontOpen = new Promise(resolve => {
-            new FontFaceObserver("Open Sans").load().then(()=> {
-                resolve();
-            })
-        })
+          new FontFaceObserver("Open Sans").load().then(() => {
+            resolve();
+          });
+        });
 
         const fontPlayfair = new Promise(resolve => {
-            new FontFaceObserver("PLayfair Display").load().then(()=> {
-                resolve();
-            })
-        })
-        
-        const preloadImages = new Promise(resolve => {
-            new imagesLoaded(document.querySelectorAll("img"), {Background: true} ,resolve());
-        })
+          new FontFaceObserver("Playfair Display").load().then(() => {
+            resolve();
+          });
+        });
 
-        let allDone = [fontOpen, fontPlayfair, preloadImages];
+        // Preload images
+        const preloadImages = new Promise((resolve, reject) => {
+            imagesLoaded(document.querySelectorAll("img"), { background: true }, resolve);
+        });
 
-        Promise.all(allDone).then(() => {
+        let allDone = [fontOpen,fontPlayfair,preloadImages]
+        this.currentScroll = 0;
+        this.raycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2();
+
+
+
+        Promise.all(allDone).then(()=>{
+            this.scroll = new Scroll();
             this.addImages();
             this.setPosition();
-            this.resize();
+
+            this.mouseMovement()
+            this.resize()
             this.setupResize();
-            this.addObjects();
+            // this.addObjects();
             this.render();
-        }) 
+            // window.addEventListener('scroll',()=>{
+            //     this.currentScroll = window.scrollY;
+            //     this.setPosition();
+            // })
+        })
+
+        
+    }
+    mouseMovement(){
+        
+
+        window.addEventListener( 'mousemove', (event)=>{
+            this.mouse.x = ( event.clientX / this.width ) * 2 - 1;
+            this.mouse.y = - ( event.clientY / this.height ) * 2 + 1;
+
+            // update the picking ray with the camera and mouse position
+            this.raycaster.setFromCamera( this.mouse, this.camera );
+
+            // calculate objects intersecting the picking ray
+            const intersects = this.raycaster.intersectObjects( this.scene.children );
+
+            if(intersects.length>0){
+                // console.log(intersects[0]);
+                let obj = intersects[0].object;
+                obj.material.uniforms.hover.value = intersects[0].uv;
+            }
+
+
+        }, false );
     }
 
-    setupResize() {
-        window.addEventListener('resize', this.resize.bind(this));
+    setupResize(){
+        window.addEventListener('resize',this.resize.bind(this));
     }
 
-    resize() {
+    resize(){
         this.width = this.container.offsetWidth;
         this.height = this.container.offsetHeight;
-        this.renderer.setSize( this.width, this.height)
-        this.camera.aspect = this.width / this.height;
-        this.camera.updateProjectionMatrix()
+        this.renderer.setSize( this.width,this.height );
+        this.camera.aspect = this.width/this.height;
+        this.camera.updateProjectionMatrix();
     }
 
+    addImages(){
+        this.material = new THREE.ShaderMaterial({
+            uniforms:{
+                time: {value:0},
+                uImage: {value:0},
+                hover: {value: new THREE.Vector2(0.5,0.5)},
+                hoverState: {value: 0},
+                oceanTexture: {value: new THREE.TextureLoader().load(ocean)},
+            },
+            side: THREE.DoubleSide,
+            fragmentShader: fragment,
+            vertexShader: vertex,
+            // wireframe: true
+        })
 
-    addImages() {
-        this.imageStore = this.images.map(img => {
+        this.materials = []
+
+        this.imageStore = this.images.map(img=>{
             let bounds = img.getBoundingClientRect()
 
-            let geometry = new THREE.PlaneBufferGeometry(bounds.width,bounds.height, 1,1)
+            let geometry = new THREE.PlaneBufferGeometry(bounds.width,bounds.height,10,10);
+            let texture = new THREE.Texture(img);
+            texture.needsUpdate = true;
+            // let material = new THREE.MeshBasicMaterial({
+            //     // color: 0xff0000,
+            //     map: texture
+            // })
 
-            let material = new THREE.MeshBasicMaterial({color: 0xff0000})
+            let material = this.material.clone();
 
-            let mesh = new THREE.Mesh(geometry, material)
+            img.addEventListener('mouseenter',()=>{
+                gsap.to(material.uniforms.hoverState,{
+                    duration:1,
+                    value:1
+                })
+            })
+            img.addEventListener('mouseout',()=>{
+                gsap.to(material.uniforms.hoverState,{
+                    duration:1,
+                    value:0
+                })
+            })
+
+            this.materials.push(material)
+
+            material.uniforms.uImage.value = texture;
+
+            let mesh = new THREE.Mesh(geometry,material);
 
             this.scene.add(mesh)
+
 
             return {
                 img: img,
@@ -98,49 +176,51 @@ export default class Sketch {
         })
 
         console.log(this.imageStore);
+
     }
 
-
-    setPosition() {
-        this.imageStore.forEach(o => {
-            o.mesh.position.y = -o.top + this.height/2 - o.height/2;
+    setPosition(){
+        this.imageStore.forEach(o=>{
+            o.mesh.position.y = this.currentScroll -o.top + this.height/2 - o.height/2;
             o.mesh.position.x = o.left - this.width/2 + o.width/2;
         })
     }
 
-    addObjects() {
-        
-    this.geometry = new THREE.PlaneBufferGeometry( 200, 400,10,10);
-    // this.geometry = new THREE.SphereBufferGeometry( 0.5,40,40);
-	this.material = new THREE.MeshNormalMaterial();
+    addObjects(){
+        this.geometry = new THREE.PlaneBufferGeometry( 200,400, 10,10 );
+        // this.geometry = new THREE.SphereBufferGeometry( 0.4, 40,40 );
+        this.material = new THREE.MeshNormalMaterial();
 
-    this.material = new THREE.ShaderMaterial({
-        uniforms: {
-            time: {value: 0},
-            oceanTexture: {value: new THREE.TextureLoader().load(ocean)}
-        },
-        side: THREE.DoubleSide,
-        fragmentShader: fragment,
-        vertexShader:  vertex,
-        wireframe: true
-    })
+        this.material = new THREE.ShaderMaterial({
+            uniforms:{
+                time: {value:0},
+                oceanTexture: {value: new THREE.TextureLoader().load(ocean)},
+            },
+            side: THREE.DoubleSide,
+            fragmentShader: fragment,
+            vertexShader: vertex,
+            wireframe: true
+        })
 
-	this.mesh = new THREE.Mesh( this.geometry, this.material );
-	this.scene.add( this.mesh );
-
+        this.mesh = new THREE.Mesh( this.geometry, this.material );
+        this.scene.add( this.mesh );
     }
-    // Create render loop
 
-    render() {
-
+    render(){
         this.time+=0.05;
-        this.mesh.rotation.x = this.time / 2000;
-	    this.mesh.rotation.y = this.time / 1000;
 
-        this.material.uniforms.time.value = this.time;
+        this.scroll.render();
+        this.currentScroll = this.scroll.scrollToRender;
+        this.setPosition();
 
-	    this.renderer.render( this.scene, this.camera );
-        // console.log(this.time); Check out the magic of time incrementing in 0.05 ms!
+
+        // this.material.uniforms.time.value = this.time;
+
+        this.materials.forEach(m=>{
+            m.uniforms.time.value = this.time;
+        })
+
+        this.renderer.render( this.scene, this.camera );
         window.requestAnimationFrame(this.render.bind(this));
     }
 }
@@ -149,29 +229,3 @@ new Sketch({
     dom: document.getElementById('container')
 });
 
-
-
-
-// First thing to do is to add some Objects to our scene as well as a resize function.
-// Line 49-53 is our first object we are going to add.
-
-// Next we need to populate our animation loop we can take the code from three.js and
-// add it to our render function.
-
-// When you change something in three.js you have to deliberatly say you changed it!
-// In this instance for resizing we need to update our camera metrics or matrix metrics.
-
-// Once changing the buffer geo to plane when rotating the plane the posterior plane is invisible
-// Just set the side key to our objects.    side: THREE.DoubleSide,
-
-
-// By adding the wireframe: true we can see inside our shapes and shaders and all the points 
-// in the 3d space. this.geometry = new THREE.PlaneBufferGeometry( 0.5, 0.5,10,10); Awesome grid looking cube
-
-
-
-// Once we apply the shader vertex using PI we want to add uniforms to our object as well
-// Then since we have to update our time we do this in the render function.
-//  this.material.uniforms.time.value = this.time;
-
-// this.geometry = new THREE.PlaneBufferGeometry( 4, 4,50,50); to create realistic wave.

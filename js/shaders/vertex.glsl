@@ -1,3 +1,4 @@
+
 //	Classic Perlin 3D Noise
 //	by Stefan Gustavson
 //
@@ -74,49 +75,28 @@ float cnoise(vec3 P){
 }
 
 uniform float time;
+uniform vec2 hover;
+uniform float hoverState;
 varying float vNoise;
 varying vec2 vUv;
 
 void main(){
     vec3 newposition=position;
     float PI=3.1415925;
-    float noise=cnoise(3.*(vec3(position.x,position.y,position.z+time/30.)));
-    // newposition.z+=.1*sin((newposition.x+.25+time/10.)*2.*PI);
-    // newposition.z+=.2*noise;
-    // float dist=distance(position,vec2(.5));
     
-    // newposition.z+=.05*sin(dist*40.);
-    // newposition+=.1*normal*noise;
+    float noise=cnoise(3.*vec3(position.x,position.y,position.z+time/30.));
+    // newposition.z += 0.1*sin( (newposition.x  + 0.25 + time/10.)*2.*PI);
     
-    vNoise=noise;
+    float dist=distance(uv,hover);
+    
+    newposition.z+=hoverState*10.*sin(dist*10.+time);
+    
+    // newposition.z += 0.05*sin(dist*40. );
+    
+    // newposition += 0.1*normal*noise;
+    
+    vNoise=hoverState*sin(dist*10.-time);
     vUv=uv;
     
     gl_Position=projectionMatrix*modelViewMatrix*vec4(newposition,1.);
 }
-
-// Position is the coordinates in a 3d space vec 3 is basically for 3d space coordinates.
-
-// We can add the x, y , z coordinates here.
-// the vertex shader is all about the posistion of the object in a 3d space. and this applys to each of the points
-// on the planebuffer geo and to animate it we would need time. Using the vertex though is how we can distort the 3d
-// object. newposition.y+=.1*sin(newposition.x*20.); cool little effect for later maybe.
-
-//  newposition.z+=.5*sin(newposition.x*20.); For a cool z distortion for my portfolio!
-
-// Next we can add some more vertices to our planebufferGeo or points to our plane.
-
-// Using PERLIN Noise algorithms for GLSL we can use it to distort are images by adding noise.
-// Perlin uses one giant function called cnoise and instead of the sin function we were just using
-// lets try it with cnoise. First we need a three dimensional vector.(vec3(three arguments for x y z axis))
-// looks very similar to sign but these values are too small to see any significant change.
-//   newposition.z+=cnoise(vec3(position.x*10.,position.y*10.,0.)); <- like so
-
-// I need to get more familiar with the sin function itself as it is very important to shaders.
-// especially using the number PI so now its between 0-1 for x and then we times it by 0.5ish
-//     float PI=3.1415925;
-// newposition.z+=.1*sin((newposition.x+.25)*2.*PI); is very useful for an exact arch using PI.
-// the sine function is exactly between 0 and PI.
-
-// vertex is ran on the gpu and the javascript on the cpu.
-//  we imported uniform float for our time from our js and then we added it to our sine function and then divided it by 10 points
-// Now we are left with a beautiful wave like animation. ex. newposition.z+=.1*sin((newposition.x+.25+time/10.)*2.*PI);
